@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Jeu Carré Mobile Fun</title>
+</head>
+<body style="font-family:Arial, sans-serif; text-align:center; background:#e0f7fa;">
+
+<!-- MENU -->
+<div id="menuScreen" style="padding:20px;">
+  <h1 style="color:#00796B;">🎮 Jeu Carré Mobile Fun</h1>
+  <label>Pseudo :</label><br>
+  <input id="pseudo" placeholder="Ton pseudo" style="padding:5px; font-size:16px;"><br><br>
+
+  <label>Durée (secondes) :</label><br>
+  <input id="timerInput" type="number" value="30" style="padding:5px; font-size:16px;"><br><br>
+
+  <button onclick="startGame()" style="padding:12px 25px; font-size:18px; margin:5px; background-color:#4CAF50; color:white; border:none; border-radius:12px; cursor:pointer;">▶️ Jouer</button>
+  <button onclick="showLeaderboard()" style="padding:12px 25px; font-size:18px; margin:5px; background-color:#2196F3; color:white; border:none; border-radius:12px; cursor:pointer;">📋 Classement amis</button>
+</div>
+
+<!-- JEU -->
+<div id="gameScreen" style="display:none; padding:20px; position:relative; height:450px;">
+  <h2 style="color:#00796B;">Score : <span id="score">0</span></h2>
+  <h3 style="color:#004D40;">Temps restant : <span id="time">0</span></h3>
+
+  <div id="clickBox" 
+       onclick="boxClicked()" 
+       style="width:50px; height:50px; background-color:#FF9800; position:absolute; top:100px; left:100px; cursor:pointer; border-radius:10px; transition: all 0.2s ease;">
+  </div>
+
+  <br>
+  <button onclick="finishGame()" style="padding:12px 25px; font-size:18px; margin:10px; background-color:#f44336; color:white; border:none; border-radius:12px; cursor:pointer;">⏹ Terminer la partie</button>
+</div>
+
+<!-- PARTAGE SCORE -->
+<div id="shareScreen" style="display:none; padding:20px;">
+  <h2 style="color:#00796B;">🎉 Fin de partie</h2>
+  <p>Score final : <span id="finalScore"></span></p>
+
+  <p>Entre ton pseudo :</p>
+  <input type="text" id="usernameShare" placeholder="Ton pseudo" style="padding:5px; font-size:16px;"><br><br>
+
+  <p>Ajoute une capture d'écran :</p>
+  <input type="file" id="screenshot" accept="image/*"><br><br>
+
+  <button onclick="saveScore()" style="padding:12px 25px; font-size:18px; margin:5px; background-color:#4CAF50; color:white; border:none; border-radius:12px; cursor:pointer;">💾 Enregistrer</button>
+  <button onclick="backToMenu()" style="padding:12px 25px; font-size:18px; margin:5px; background-color:#2196F3; color:white; border:none; border-radius:12px; cursor:pointer;">⬅️ Retour</button>
+</div>
+
+<!-- CLASSEMENT -->
+<div id="leaderboardScreen" style="display:none; padding:20px;">
+  <h2 style="color:#00796B;">📋 Classement Amis</h2>
+  <div id="leaderboardList" style="text-align:center;"></div>
+  <button onclick="backToMenu()" style="padding:12px 25px; font-size:18px; margin:10px; background-color:#2196F3; color:white; border:none; border-radius:12px; cursor:pointer;">⬅️ Retour au menu</button>
+</div>
+
+<!-- SONS -->
+<audio id="clickSound">
+  <source src="https://www.soundjay.com/button/beep-07.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+// ===== VARIABLES =====
+let score = 0;
+let timeLeft = 0;
+let timer;
+let bonusMode = false;
+const clickSound = document.getElementById("clickSound");
+
+// ===== LOCALSTORAGE CLASSEMENT =====
+function getLeaderboard(){ return JSON.parse(localStorage.getItem("leaderboard") || "[]"); }
+
+// ===== JEU =====
+function startGame(){
+    score = 0;
+    timeLeft = parseInt(document.getElementById("timerInput").value);
+    bonusMode = false;
+
+    document.getElementById("score").innerText = score;
+    document.getElementById("time").innerText = timeLeft;
+
+    moveBox();
+    showScreen("gameScreen");
+
+    timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById("time").innerText = timeLeft;
+        if(timeLeft <= 0) finishGame();
+    }, 1000);
+}
+
+// ===== CLIC SUR LE CARRÉ =====
+function boxClicked(){
+    clickSound.play();
+    score += bonusMode ? 5 : 1;
+    document.getElementById("score").innerText = score;
+
+    animateBox();
+    changeColor();
+    moveBox();
+
+    if(score % 1000 === 0 && score!==0) megaBonus();
+    else if(score % 100 === 0 && score!==0) bigEvent();
+    else if(score % 50 === 0 && score!==0) mediumEvent();
+    else if(score % 10 === 0 && score!==0) smallEvent();
+}
+
+// ===== ANIMATIONS + COULEUR =====
+function animateBox(){
+    const box = document.getElementById("clickBox");
+    box.style.transform = "scale(1.3)";
+    setTimeout(()=>{ box.style.transform="scale(1)"; },150);
+}
+
+function moveBox(){
+    const box = document.getElementById("clickBox");
+    const gameArea = document.getElementById("gameScreen");
+    const maxX = gameArea.clientWidth - 50;
+    const maxY = gameArea.clientHeight - 50;
+
+    const newX = Math.floor(Math.random()*maxX);
+    const newY = Math.floor(Math.random()*maxY);
+
+    box.style.left = newX + "px";
+    box.style.top = newY + "px";
+}
+
+function changeColor(){
+    const box = document.getElementById("clickBox");
+    const colors = ["#FF9800","#4CAF50","#2196F3","#f44336","#9C27B0","#FFEB3B"];
+    box.style.backgroundColor = colors[Math.floor(Math.random()*colors.length)];
+}
+
+// ===== BONUS / MALUS =====
+function smallEvent(){ triggerEvent(["Bouton plus petit 3 sec","Score -5","Temps -3 sec"]); }
+function mediumEvent(){ triggerEvent(["Bouton invisible 2 sec","Score /2","Temps -5 sec"]); }
+function bigEvent(){ triggerEvent(["Score = 0 😈","Bouton super rapide","Bouton change de place chaque clic"]); }
+
+function megaBonus(){
+    bonusMode = true;
+    const box = document.getElementById("clickBox");
+    box.style.width = "100px";
+    box.style.height = "100px";
+    alert("🔥 BONUS 1000 PTS : carré énorme + x5 points pendant 1 minute !");
+    setTimeout(()=>{
+        bonusMode=false;
+        box.style.width="50px";
+        box.style.height="50px";
+    },60000);
+}
+
+function triggerEvent(list){
+    const event = list[Math.floor(Math.random()*list.length)];
+    alert("⚡ Événement : "+event);
+
+    if(event.includes("Score -")) score -= 5;
+    if(event.includes("Temps -")) timeLeft -= 3;
+    if(event.includes("/2")) score = Math.floor(score/2);
+    if(event.includes("0")) score = 0;
+
+    document.getElementById("score").innerText = score;
+}
+
+// ===== FIN DE PARTIE =====
+function finishGame(){
+    clearInterval(timer);
+    document.getElementById("finalScore").innerText = score;
+    showScreen("shareScreen");
+}
+
+// ===== ENREGISTRER SCORE + IMAGE =====
+function saveScore(){
+    let pseudo = document.getElementById("usernameShare").value;
+    let file = document.getElementById("screenshot").files[0];
+
+    if(pseudo===""){ alert("Mets ton pseudo !"); return; }
+
+    let entry = {name:pseudo, score:score, image:""};
+
+    if(file){
+        let reader = new FileReader();
+        reader.onload=function(e){ entry.image = e.target.result; storeEntry(entry); };
+        reader.readAsDataURL(file);
+    }else{ storeEntry(entry); }
+}
+
+function storeEntry(entry){
+    let data = getLeaderboard();
+    data.push(entry);
+    data.sort((a,b)=>b.score-a.score);
+    localStorage.setItem("leaderboard", JSON.stringify(data));
+    alert("Score ajouté !");
+    backToMenu();
+}
+
+// ===== AFFICHER CLASSEMENT =====
+function showLeaderboard(){
+    let data = getLeaderboard();
+    let div = document.getElementById("leaderboardList");
+    div.innerHTML = "";
+    data.forEach(e=>{
+        div.innerHTML+=`
+            <p style="margin:10px; padding:5px; border-bottom:1px solid #aaa;">
+            <strong>${e.name}</strong> — ${e.score} points <br>
+            ${e.image ? `<img src="${e.image}" width="150" style="margin-top:5px;">` : ""}
+            </p>`;
+    });
+    showScreen("leaderboardScreen");
+}
+
+// ===== GÉRER LES ÉCRANS =====
+function backToMenu(){ showScreen("menuScreen"); }
+function showScreen(id){
+    document.getElementById("menuScreen").style.display="none";
+    document.getElementById("gameScreen").style.display="none";
+    document.getElementById("shareScreen").style.display="none";
+    document.getElementById("leaderboardScreen").style.display="none";
+    document.getElementById(id).style.display="block";
+}
+
+// ===== LANCER SUR LE MENU =====
+showScreen("menuScreen");
+</script>
+
+</body>
+</html>
